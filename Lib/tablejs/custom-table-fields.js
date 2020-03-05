@@ -3,12 +3,14 @@
   See COPYRIGHT.txt and LICENSE.txt.
 
   Part of the OpenEnergyMonitor project: http://openenergymonitor.org
+  2016-12-20 - Expanded tables by : Nuno Chaveiro  nchaveiro(a)gmail.com  
 */
+
 var customtablefields = {
   'icon': {
-    'draw': function(row,field) {
-      if (table.data[row][field] == true) return "<i class='"+table.fields[field].trueicon+"' type='input' style='cursor:pointer'></i>";
-      if (table.data[row][field] == false) return "<i class='"+table.fields[field].falseicon+"' type='input' style='cursor:pointer'></i>";
+    'draw': function(t,row,child_row,field) {
+      if (t.data[row][field] == true) return "<i class='"+t.fields[field].trueicon+"' type='input' style='cursor:pointer'></i>";
+      if (t.data[row][field] == false) return "<i class='"+t.fields[field].falseicon+"' type='input' style='cursor:pointer'></i>";
     },
 
     'event': function() {
@@ -16,77 +18,192 @@ var customtablefields = {
       $(table.element).on('click', 'i[type=input]', function() {
         var row = $(this).parent().attr('row');
         var field = $(this).parent().attr('field');
-        if (!table.data[row]['#READ_ONLY#']) {
-          table.data[row][field] = !table.data[row][field];
+        var t = table;
+        if (!t.data[row]['#READ_ONLY#']) {
+          var val = t.data[row][field];
+          if (typeof val === "boolean") {
+            t.data[row][field] = !val;
+          } else {
+            //boolean conversion and negate
+            var boolVal;
+            if(typeof val === "number"){
+                boolVal = val === 0 ? false : true;
+            } else if (typeof val === "string") {
+                boolVal = (val == "0" || val == "false") ? false : true;
+            } else {
+                //neither bool nor number nor string
+                //"strange" value
+                boolVal = false;
+            }
+            t.data[row][field] = !boolVal;  
+          }
 
           var fields = {};
-          fields[field] = table.data[row][field];
+          fields[field] = t.data[row][field];
 
-          $(table.element).trigger("onSave",[table.data[row]['id'],fields]);
-          if (table.data[row][field]) $(this).attr('class', table.fields[field].trueicon); else $(this).attr('class', table.fields[field].falseicon);
-          table.draw();
+          $(table.element).trigger("onSave",[t.data[row]['id'],fields]);
+          if (t.data[row][field]) $(this).attr('class', t.fields[field].trueicon); else $(this).attr('class', t.fields[field].falseicon);
+          t.draw();
         }
       });
     }
   },
 
   'updated': {
-    'draw': function (row,field) { return list_format_updated(table.data[row][field]) }
+    'draw': function (t,row,child_row,field) { return list_format_updated(t.data[row][field]) }
   },
 
   'value': {
-    'draw': function (row,field) { return list_format_value(table.data[row][field]) }
+    'draw': function (t,row,child_row,field) { return list_format_value(t.data[row][field]) }
   },
 
   'processlist': {
-    'draw': function (row,field) { 
-      var processlist = table.data[row][field];
-      if (processlist_ui != undefined) return processlist_ui.drawpreview(processlist);
+    'draw': function (t,row,child_row,field) {
+      var processlist = t.data[row][field];
+      if (processlist_ui != undefined) return processlist_ui.drawpreview(processlist,t.data[row]);
       else return "";
     }
   },
 
   'iconlink': {
-    'draw': function (row,field) { 
-      var icon = 'icon-eye-open'; if (table.fields[field].icon) icon = table.fields[field].icon;
-      return "<a href='"+table.fields[field].link+table.data[row]['id']+"' ><i class='"+icon+"' ></i></a>" 
+    'draw': function (t,row,child_row,field) {
+      var icon = 'icon-eye-open'; if (t.fields[field].icon) icon = t.fields[field].icon;
+      return "<a href='"+t.fields[field].link+t.data[row]['id']+"' ><i class='"+icon+"' ></i></a>" 
     }
   },
 
   'iconbasic': {
-    'draw': function(row,field)
-    {
-      return "<i class='"+table.fields[field].icon+"' type='icon' row='"+row+"' style='cursor:pointer'></i>";
+    'draw': function(t,row,child_row,field) {
+      return "<i class='"+t.fields[field].icon+"' type='icon' row='"+row+"' child_row='"+child_row+"' style='cursor:pointer'></i>";
     }
   },
-  
+
   'hinteditable': {
-    'draw': function (row,field) { return "…";},
-    'edit': function (row,field) { return "<input type='text' value='"+table.data[row][field]+"' / >" },
-    'save': function (row,field) { return $("[row="+row+"][field="+field+"] input").val() }
+    'draw': function (t,row,child_row,field) { return "…";},
+    'edit': function (t,row,child_row,field) { return "<input type='text' value='"+t.data[row][field]+"' / >" },
+    'save': function (t,row,child_row,field) { return $("[row='"+row+"'][child_row='"+child_row+"'][field='"+field+"'] input").val() }
   },
 
   'iconconfig': {
-    'draw': function(row,field)
-    {
-      return table.data[row]['#NO_CONFIG#'] ? "" : "<i class='"+table.fields[field].icon+"' type='icon' row='"+row+"' style='cursor:pointer'></i>";
+    'draw': function(t,row,child_row,field) {
+      return t.data[row]['#NO_CONFIG#'] ? "" : "<i class='"+t.fields[field].icon+"' type='icon' row='"+row+"' child_row='"+child_row+"' style='cursor:pointer'></i>";
     }
   },
+
   'size': {
-    'draw': function (row,field) { return list_format_size(table.data[row][field]); }
+    'draw': function (t,row,child_row,field) { return list_format_size(t.data[row][field]); }
   },
 
   'group-iconbasic': {
-    'draw': function(group,rows,field)
+    'draw': function(t,group,rows,field)
     {
-      return "<i class='"+table.groupfields[field].icon+"' type='icon' group='"+group+"' rows='"+rows+"' style='cursor:pointer'></i>";
+      return "<i class='"+t.groupfields[field].icon+"' type='icon' group='"+group+"' rows='"+rows+"' style='cursor:pointer'></i>";
     }
-  }
+  },
+
+  'group-size': {
+    'draw': function(t,group,rows,field) {
+      var sum = 0;
+      for (i in rows) {
+        var row=rows[i];
+        if ($.isNumeric(t.data[row][field])) {
+          sum = sum + (1*t.data[row][field]); 
+        }
+      }
+      return list_format_size(sum);
+    }
+  },
+
+  'group-updated': {
+    'draw': function(t,group,rows,field) {
+      var lastupdate = 0;
+      for (i in rows) {
+        var row=rows[i];
+        if ($.isNumeric(t.data[row][field])) {
+          var update = (1*t.data[row][field]);
+          if (update > lastupdate) lastupdate = update;
+        }
+      }
+      return list_format_updated(lastupdate);
+    }
+  },
+
+  'group-processlist': {
+    'draw': function(t,group,rows,field) {
+      var out = "";
+      for (i in rows) {
+        var row=rows[i];
+        var processlist = t.data[row][field];
+        if (processlist_ui != undefined) out+= processlist_ui.group_drawerror(processlist);
+        if (out != "") return out;
+      }
+      return out;
+    }
+  },
+  
+    'date': {
+        'draw': function (t,row,child_row,field) {
+            var date = new Date();
+            date.setTime(1000 * t.data[row][field]); //from seconds to miliseconds
+            return (date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear() + ' ' + date.getHours() + ':' + date.getMinutes());
+        },
+        'edit':function (t,row,child_row,field) {
+            var date= new Date();
+            date.setTime(1000 * t.data[row][field]); //from seconds to miliseconds
+            var day = date.getDate();
+            var month = date.getMonth() +1; // getMonth() returns 0-11
+            var year = date.getFullYear();
+            var hours= date.getHours();
+            var minutes = date.getMinutes();
+            return '<div class="input-append date" id="'+field +'-'+row+'-'+t.data[row][field]+'" data-format="dd/MM/yyyy hh:mm" data-date="'+day+'/'+month+'/'+year+' '+hours+':'+minutes+'"><input data-format="dd/MM/yyyy hh:mm" value="'+day+'/'+month+'/'+year+' '+hours+':'+minutes+'" type="text" /><span class="add-on"> <i data-time-icon="icon-time" data-date-icon="icon-calendar"></i></span></div>';
+        },
+        'save': function (t,row,child_row,field) { 
+            return parse_timepicker_time($("[row='"+row+"'][child_row='"+child_row+"'][field='"+field+"'] input").val());
+        }    
+    },
+  
+    'fixeddate': {
+        'draw': function (t,row,child_row,field) {
+            var date = new Date();
+            date.setTime(1000 * t.data[row][field]); //from seconds to miliseconds
+            return (date.getDate() + '/' + (date.getMonth() + 1) + '/' + date.getFullYear() + ' ' + date.getHours() + ':' + date.getMinutes());
+        }
+    }
 }
 
 
 // Calculate and color updated time
-function list_format_updated(time){
+function list_format_updated(time) {
+  time = time * 1000;
+  var servertime = (new Date()).getTime() - table.timeServerLocalOffset;
+  var update = (new Date(time)).getTime();
+
+  var delta = servertime - update;
+  var secs = Math.abs(delta) / 1000;
+  var mins = secs / 60;
+  var hour = secs / 3600;
+  var day = hour / 24;
+
+  var updated = secs.toFixed(0) + "s";
+  if ((update == 0) || (!$.isNumeric(secs))) updated = "n/a";
+  else if (secs.toFixed(0) == 0) updated = "now";
+  else if (day > 7 && delta > 0) updated = "inactive";
+  else if (day > 2) updated = day.toFixed(1) + " days";
+  else if (hour > 2) updated = hour.toFixed(0) + " hrs";
+  else if (secs > 180) updated = mins.toFixed(0) + " mins";
+
+  secs = Math.abs(secs);
+  var color = "rgb(255,0,0)";
+  if (delta < 0) color = "rgb(60,135,170)"
+  else if (secs < 25) color = "rgb(50,200,50)"
+  else if (secs < 60) color = "rgb(240,180,20)"; 
+  else if (secs < (3600*2)) color = "rgb(255,125,20)"
+
+  return "<span style='color:"+color+";'>"+updated+"</span>";
+}
+
+// Calculate relative time
+function relative_time(time) {
   time = time * 1000;
   var servertime = (new Date()).getTime() - table.timeServerLocalOffset;
   var update = (new Date(time)).getTime();
@@ -95,27 +212,22 @@ function list_format_updated(time){
   var mins = secs/60;
   var hour = secs/3600;
   var day = hour/24;
+  var year = day/365;
 
-  var updated = secs.toFixed(0) + "s";
-  if ((update == 0) || (!$.isNumeric(secs))) updated = "n/a";
-  else if (secs< 0) updated = secs.toFixed(0) + "s"; // update time ahead of server date is signal of slow network
-  else if (secs.toFixed(0) == 0) updated = "now";
-  else if (day>7) updated = "inactive";
-  else if (day>2) updated = day.toFixed(1)+" days";
-  else if (hour>2) updated = hour.toFixed(0)+" hrs";
-  else if (secs>180) updated = mins.toFixed(0)+" mins";
+  var relative_time = secs.toFixed(0) + "s";
+  if (update == 0) relative_time = "n/a";
+  else if (secs < 0) relative_time = secs.toFixed(0) + "s"; // update time ahead of server date is signal of slow network
+  else if (secs.toFixed(0) < 10) relative_time = "a few seconds";
+  else if (day>365) relative_time = year.toFixed(2)+" years";
+  else if (day>2) relative_time = day.toFixed(1)+" days";
+  else if (hour>2) relative_time = hour.toFixed(0)+" hrs";
+  else if (secs>180) relative_time = mins.toFixed(0)+" mins";
 
-  secs = Math.abs(secs);
-  var color = "rgb(255,0,0)";
-  if (secs<25) color = "rgb(50,200,50)"
-  else if (secs<60) color = "rgb(240,180,20)"; 
-  else if (secs<(3600*2)) color = "rgb(255,125,20)"
-
-  return "<span style='color:"+color+";'>"+updated+"</span>";
+  return relative_time
 }
 
 // Format value dynamically 
-function list_format_value(value){
+function list_format_value(value) {
   if (value == null) return 'NULL';
   value = parseFloat(value);
   if (value>=1000) value = parseFloat((value).toFixed(0));
@@ -127,7 +239,7 @@ function list_format_value(value){
   return value;
 }
 
-function list_format_size(bytes){
+function list_format_size(bytes) {
   if (!$.isNumeric(bytes)) {
     return "n/a";
   } else if (bytes<1024) {
@@ -142,3 +254,16 @@ function list_format_size(bytes){
     return (bytes/(1024*1024*1024)).toFixed(1)+"GB";
   }
 }
+
+  function parse_timepicker_time(timestr){
+    var tmp = timestr.split(" ");
+    if (tmp.length!=2) return false;
+
+    var date = tmp[0].split("/");
+    if (date.length!=3) return false;
+
+    var time = tmp[1].split(":");
+    if (time.length!=2) return false;
+
+    return new Date(date[2],date[1]-1,date[0],time[0],time[1],0).getTime() / 1000;
+  }

@@ -13,11 +13,7 @@
 ?>
 
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.touch.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/date.format.min.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/api.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/vis.helper.js"></script>
@@ -65,19 +61,20 @@ var interval = 3600*24;
 
 var top_offset = 0;
 
-var path = "<?php echo $path; ?>";
 var apikey = "";
 
 // var feedid = urlParams['feedid'];
 // var embed = urlParams['embed'] || false;
 
+var initzoom = urlParams.initzoom;
+    if (initzoom==undefined || initzoom=='' || initzoom < 1) initzoom = '7'; // Initial zoom default to 7 days (1 week)
 var placeholder_bound = $('#placeholder_bound');
 var placeholder = $('#placeholder').width(placeholder_bound.width()).height($('#placeholder_bound').height()-top_offset);
 if (embed) placeholder.height($(window).height()-top_offset);
 
 
 
-var timeWindow = (3600000*24.0*7);
+var timeWindow = (3600000*24.0*initzoom);
 view.start = +new Date - timeWindow;
 view.end = +new Date;
 
@@ -132,59 +129,68 @@ $(function() {
                 plotdata[z][0] = plotdata[z][0] - 3600000*offset;
             }
         }
+        // If last data point corresponds to today, then it's not a full day and needs adjustment
+        var now=new Date();
+        var last=plotdata.length-1;
+        if ((now-plotdata[last][0])<(24*60*60*1000)) {
+            var hourstoday=(now-new Date(now.getFullYear(),now.getMonth(),now.getDate()))/(60*60*1000);
+            plotdata[last][1]=(plotdata[last][1]/0.024)*(hourstoday/1000);
+        }
 
         stats.calc(plotdata);
         //console.log(stats.mean);
 
         plot();
     }
-	
+    
     function plot()
     {
         var plot = $.plot(placeholder, [plotdata], {
+            canvas: true,
             //points: {show:true},
             bars: { show: true, align: "center", barWidth: 0.75*interval*1000, fill: true},
             xaxis: { mode: "time", timezone: "browser", min: view.start, max: view.end, minTickSize: [interval, "second"] },
             grid: {hoverable: true, clickable: true},
             selection: { mode: "x" },
-			touch: { pan: "x", scale: "x" }
+            touch: { pan: "x", scale: "x" }
         });
     }
-	
-	// Graph buttons and navigation efects for mouse and touch
-	placeholder.mouseenter(function(){
-		$("#graph-navbar").show();
-		$("#graph-buttons").stop().fadeIn();
-		$("#stats").stop().fadeIn();
-	});
-	placeholder_bound.mouseleave(function(){
-		$("#graph-buttons").stop().fadeOut();
-		$("#stats").stop().fadeOut();
-	});
-	placeholder.bind("touchstarted", function (event, pos)
-	{
-		$("#graph-navbar").hide();
-		$("#graph-buttons").stop().fadeOut();
-		$("#stats").stop().fadeOut();
-	});
-	
+    
+    // Graph buttons and navigation efects for mouse and touch
+    placeholder.mouseenter(function(){
+        $("#graph-navbar").show();
+        $("#graph-buttons").stop().fadeIn();
+        $("#stats").stop().fadeIn();
+    });
+    placeholder_bound.mouseleave(function(){
+        $("#graph-buttons").stop().fadeOut();
+        $("#stats").stop().fadeOut();
+    });
+    placeholder.bind("touchstarted", function (event, pos)
+    {
+        $("#graph-navbar").hide();
+        $("#graph-buttons").stop().fadeOut();
+        $("#stats").stop().fadeOut();
+    });
+    
 
-	placeholder.bind("touchended", function (event, ranges)
-	{
-		$("#graph-buttons").stop().fadeIn();
-		$("#stats").stop().fadeIn();
-		view.start = ranges.xaxis.from;
-		view.end = ranges.xaxis.to;
-		draw();
-	});
-		
+    placeholder.bind("touchended", function (event, ranges)
+    {
+        $("#graph-buttons").stop().fadeIn();
+        $("#stats").stop().fadeIn();
+        view.start = ranges.xaxis.from;
+        view.end = ranges.xaxis.to;
+        draw();
+    });
+        
+    $(document).on('window.resized hidden.sidebar.collapse shown.sidebar.collapse',vis_resize);
+    
+    function vis_resize() {
+        placeholder.width(placeholder_bound.width());
+        if (embed) placeholder.height($(window).height()-top_offset);
 
-	$(window).resize(function(){
-		placeholder.width(placeholder_bound.width());
-		if (embed) placeholder.height($(window).height()-top_offset);
-
-		plot();
-	});
+        plot();
+    }
 });
 
 </script>

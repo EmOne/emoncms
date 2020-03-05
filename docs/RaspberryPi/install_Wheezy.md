@@ -1,4 +1,8 @@
-# Install Emoncms on Raspberry Pi (Raspbian Wheezy)
+**To install emoncms on a Raspberry Pi see new installation script approach:<br>https://github.com/openenergymonitor/EmonScripts**
+
+---
+
+## Archived: Install Emoncms on Raspberry Pi (Raspbian Wheezy)
 
 This guide will install the current full version of emoncms onto a Raspberry Pi running the Raspbian Wheezy operating system.  
 An alternative installation guide is [avaliable for Raspbian Jessie](readme.md) - they are different, so ensure that you use the correct guide!  
@@ -102,7 +106,8 @@ Update your settings to use your Database 'user' & 'password', which will enable
 Save and exit.  
 Set write permissions for the emoncms logfile:
 
-`touch /var/www/emoncms/emoncms.log` followed by `chmod 666 /var/www/emoncms/emoncms.log`
+`sudo touch /var/log/emoncms/emoncms.log` followed by  
+`sudo chmod 666 /var/log/emoncms/emoncms.log`
 
 ### In an internet browser, load emoncms:
 
@@ -117,7 +122,7 @@ Once you are logged in;
 
 ### Install Emonhub
 
-    git clone https://github.com/emonhub/dev-emonhub.git ~/dev-emonhub && ~/dev-emonhub/install
+    git clone https://github.com/emonhub/dev-emonhub.git ~/dev-emonhub && ~/dev-emonhub/upgrade
 
 Edit the emonhub configuration file, entering your emoncms 'Write API Key' and set the "local" emoncms address `url = http://localhost/emoncms` (emonhub sends to http://emoncms.org by default). Also set your RFM2Pi frequency, group & base id if necessary:
 
@@ -143,8 +148,8 @@ Once your Pi has stopped, disconnect the power lead and connect your RFM69Pi add
 
 ###System Options
 * [Move the operating system partition (root) to an USB HDD](USB_HDD.md)
-* [Disabling Apache, Redis & emoncms logs](general.md#disabling-system-logs)
 * [Enabling low-write mode](Low-write-mode.md)
 * [Enabling MQTT](MQTT.md)
 * [Installing emoncms Modules](general.md#module-installation)
-* [Updating emoncms](general.md#updating-emoncms-via-git)
+* [Updating emoncms](general.md#updating-emoncms-via-git)  
+* [System Logs](general.md#system-logs)

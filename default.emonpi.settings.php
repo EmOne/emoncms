@@ -1,10 +1,11 @@
 <?php
 
 //1 #### Mysql database settings
-    $server   = "localhost";
+    $server   = "127.0.0.1";
     $database = "emoncms";
-    $username = "root";
-    $password = "raspberry";
+    $username = "emoncms";
+    $password = "emonpiemoncmsmysql2016";
+    $port     = "3306";
     // Skip database setup test - set to false once database has been setup.
     $dbtest = true;
 
@@ -14,7 +15,7 @@
     $redis_server = array( 'host'   => 'localhost',
                            'port'   => 6379,
                            'auth'   => '',
-                           'prefix' => 'emoncms');
+                           'prefix' => '');
 
 
 //3 #### MQTT
@@ -24,7 +25,10 @@
     $mqtt_server = array( 'host'     => 'localhost',
                           'port'     => 1883,
                           'user'     => 'emonpi',
-                          'password' => 'emonpimqtt2016');
+                          'password' => 'emonpimqtt2016',
+                          'basetopic'=> 'emon',
+                          'client_id' => 'emoncms'
+                          );
 
 
 //4 #### Engine settings
@@ -37,7 +41,8 @@
             //Engine::MYSQLMEMORY,   // 8  Mysql with MEMORY tables on RAM. All data is lost on shutdown
             //Engine::PHPTIMESERIES, // 2
             //Engine::PHPFINA,       // 5
-            Engine::PHPFIWA          // 6  PHPFIWA disabled for compatibility with Low-write mode
+            Engine::PHPFIWA,         // 6  PHPFIWA disabled for compatibility with Low-write mode
+            Engine::CASSANDRA        // 10 Apache Cassandra disabled by default for emonpi, enable if you wish to use
         ),
 
         // Redis Low-write mode
@@ -59,16 +64,28 @@
         ),
         'phptimeseries'=>array(
             'datadir' => '/home/pi/data/phptimeseries/'
+        ),
+        'cassandra'=>array(
+            'keyspace' => 'emoncms'
         )
     );
 
+    $homedir = "/home/pi";
+
     // Max number of allowed different inputs per user. For limiting garbage rf data
     $max_node_id_limit = 32;
+    // Datapoint limit. Increasing this effects system performance but allows for more data points to be read from one api call
+    $max_datapoints = 8928;
 
 
 //5 #### User Interface settings
+    // gettext  translations are found under each Module's locale directory
+    $default_language = 'en_GB';
+    
     // Theme location (folder located under Theme/, and must have the same structure as the basic one)
     $theme = "basic";
+    // Theme colour options: "standard", "blue", "sun"
+    $themecolor = "blue";
 
     // Favicon filenme in Theme/$theme
     $favicon = "favicon_emonpi.png";
@@ -90,6 +107,9 @@
     // Allow user to reset his password
     $enable_password_reset = false;
 
+    // Email address to email proccessed input values
+    $default_emailto = 'root@localhost';
+
     // (OPTIONAL) Email SMTP, used for password reset or other email functions
     $smtp_email_settings = array(
       'host'=>"smtp.gmail.com",
@@ -106,8 +126,8 @@
     $default_action = "login";
 
     // Default controller and action if none are specified and user is logged in
-    $default_controller_auth = "nodes";
-    $default_action_auth = "view";
+    $default_controller_auth = "feed";
+    $default_action_auth = "list";
 
     // Public profile functionality
     // Allows http://yourdomain.com/[username]/[dash alias] or ?id=[dash id]
@@ -116,14 +136,17 @@
     $public_profile_enabled = true;
     $public_profile_controller = "dashboard";
     $public_profile_action = "view";
+    
+    // Default feed viewer: "vis/auto?feedid=" or "graph/" - requires module https://github.com/emoncms/graph
+    $feedviewpath = "graph/";
 
 
 //6 #### Other settings
     // Log file configuration
     $log_enabled = true;
-    $log_filename = '/var/log/emoncms.log';
-    // Log Level: 0=ALL, 1=ERROR, 2=WARN, 3=INFO
-    $log_level = 1;
+    $log_location = "/var/log/emoncms";
+    // Log Level: 1=INFO, 2=WARN, 3=ERROR
+    $log_level = 2;
 
     // If installed on Emonpi, allow admin menu tools
     $allow_emonpi_admin = true;
@@ -147,5 +170,15 @@
     // field separator
     $csv_field_separator = ",";
 
+    // set true on docker installations
+    $allow_config_env_vars = false;
+
     // Dont change - developer updates this when the config format changes
-    $config_file_version = "7";
+    $config_file_version = "10";
+    
+    // Set to true to run database update without logging in
+    // URL Example: http://localhost/emoncms/admin/db
+    $updatelogin = false;
+
+    // Applicaton name
+    $appname = "emoncms";

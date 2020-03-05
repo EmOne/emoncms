@@ -10,21 +10,29 @@
     */
 
     global $path, $embed;
+    
+    
+    
 ?>
 
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.touch.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/date.format.min.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/api.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/vis.helper.js"></script>
 
 <div id="vis-title"></div>
-
-<div id="placeholder_bound" style="width:100%; height:400px; position:relative; ">
+<style>
+    .stats-container{
+        position: absolute;
+        bottom: 0.3em;
+        width: 100%;
+        text-align: center;
+        text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff;
+        font-size: 1.3rem;
+    }
+</style>
+<div id="placeholder_bound" style="position: relative; height: 75vh">
     <div id="placeholder" style="position:absolute; top:0px;"></div>
     <div id="graph-buttons" style="position:absolute; top:18px; right:32px; opacity:0.5;">
         <div class='btn-group'>
@@ -45,18 +53,16 @@
             <button class='btn graph-nav' id='right'>></button>
         </div>
     </div>
-    <h3 style="position:absolute; top:0px; left:32px;"><span id="stats"></span></h3>
+    <h3 class="stats-container"><span id="stats"></span></h3>
 </div>
 
 <script id="source" language="javascript" type="text/javascript">
 
+    var feedid = <?php echo $feedid; ?>;
     var feedname = "<?php echo $feedidname; ?>";
-    var path = "<?php echo $path; ?>";
     var apikey = "<?php echo $apikey; ?>";
     var embed = <?php echo $embed; ?>;
     var valid = "<?php echo $valid; ?>";
-
-    var feedid = urlParams.feedid;
 
     var interval = urlParams.interval;
     if (interval==undefined || interval=='') interval = 3600*24;
@@ -76,6 +82,12 @@
     var delta = urlParams.delta;
     if (delta==undefined || delta=='') delta = 0;
 
+    var mode = urlParams.mode;
+    if (mode==undefined || mode=='') mode = false;
+    
+    var initzoom = urlParams.initzoom;
+    if (initzoom==undefined || initzoom=='' || initzoom < 1) initzoom = '7'; // Initial zoom default to 7 days (1 week)
+    
     document.getElementById("textunitD").innerHTML=units;
     document.getElementById("textunitM").innerHTML=units;
     document.getElementById("textunitY").innerHTML=units;
@@ -91,9 +103,10 @@
     var placeholder = $('#placeholder');
 
     var width = placeholder_bound.width();
-    var height = width * 0.5;
+    var height = placeholder_bound.height();
 
     placeholder.width(width);
+
     placeholder_bound.height(height);
     placeholder.height(height-top_offset);
 
@@ -104,17 +117,7 @@
 
     var intervalms = interval * 1000;
 
-    var timeWindow;
-
-    if (intervalcode=='y')
-       timeWindow = 3600000*24*365*5;
-    else if (intervalcode=='m')
-       timeWindow = 3600000*24*365;
-    else if (intervalcode=='d')
-       timeWindow = 3600000*24*10;
-    else
-       timeWindow = 3600000*24*31;
-
+    var timeWindow = (3600000*24.0*initzoom);
     view.start = +new Date - timeWindow;
     view.end = +new Date;
 
@@ -218,7 +221,7 @@
                 else if (intervalcode=='d')
                    datestr = new Date(item.datapoint[0]).format("ddd, mmm dS, yyyy");
                 else
-                    datestr = (new Date(item.datapoint[0]))./*toLocaleDateString()+","+(new Date(item.datapoint[0])).toLocaleTimeString();*/format("ddd, mmm dS, yyyy, hh:MM:ss");
+                    datestr = (new Date(item.datapoint[0]))./*toLocaleDateString()+","+(new Date(item.datapoint[0])).toLocaleTimeString();*/format("ddd, mmm dS, yyyy, HH:MM:ss");
 
                 $("#stats").html(item.datapoint[1].toFixed(dp)+units+" | "+datestr);
             }
@@ -236,8 +239,12 @@
             dataend -= offset * 3600000;
      
             //TODO: need to be fixed, when the interval is a day, it returns the kwh elapsed in 24h from an eratic time (9:08 by example). It should returns the kwh elapsed in 24h from midnight to midnight.
-            data = get_feed_data(feedid,datastart,dataend,interval,0,1);
-     
+            if (mode==0) {
+                data = get_feed_data(feedid,datastart,dataend,interval,0,1);
+            } else {
+                data = get_feed_data_DMY(feedid,datastart,dataend,mode);
+            }
+            
             var out = [];
             
             if (delta==1) {
@@ -263,49 +270,47 @@
             }*/
            
            out = [];
-           var year = new Date (data[0][0]).getFullYear();
-           var month= new Date (data[0][0]).getMonth();
-           var sumtime=0;
-           var sum=0;
-     
-            if (intervalcode=='y'){
-               sumtime= new Date (year,0,1);
-               for (var x=0;x<data.length;x++){
-                  if (new Date (data[x][0]).getFullYear() == year)
-                     sum+=data[x][1];
-                  else {
-                     out.push([sumtime,sum]);
-                     year = new Date (data[x][0]).getFullYear();
-                     sumtime= new Date (year,0,1);
-                     sum=data[x][1];
-                  }
-               }
-               out.push([sumtime,sum]);
-               data=out;
-            }
+           if (data.length) {
+               var year = new Date (data[0][0]).getFullYear();
+               var month= new Date (data[0][0]).getMonth();
+               var sumtime=0;
+               var sum=0;
+         
+                if (intervalcode=='y'){
+                   sumtime= new Date (year,0,1);
+                   for (var x=0;x<data.length;x++){
+                      if (new Date (data[x][0]).getFullYear() == year)
+                         sum+=data[x][1];
+                      else {
+                         out.push([sumtime,sum]);
+                         year = new Date (data[x][0]).getFullYear();
+                         sumtime= new Date (year,0,1);
+                         sum=data[x][1];
+                      }
+                   }
+                   out.push([sumtime,sum]);
+                   data=out;
+                }
 
-            else if (intervalcode=='m'){
-               sumtime= new Date (year,month,1);
-               for (var x=0;x<data.length;x++){
-                  if (new Date (data[x][0]).getMonth() == month)
-                     sum+=data[x][1];
-                  else {
-                     out.push([sumtime,sum]);
-                     month= new Date (data[x][0]).getMonth();
-                     year = new Date (data[x][0]).getFullYear();
-                     sumtime= new Date (year,month,1);
-                     sum=data[x][1];
-                  }
-               }
-               out.push([sumtime,sum]);
-               data=out;
+                else if (intervalcode=='m'){
+                   sumtime= new Date (year,month,1);
+                   for (var x=0;x<data.length;x++){
+                      if (new Date (data[x][0]).getMonth() == month)
+                         sum+=data[x][1];
+                      else {
+                         out.push([sumtime,sum]);
+                         month= new Date (data[x][0]).getMonth();
+                         year = new Date (data[x][0]).getFullYear();
+                         sumtime= new Date (year,month,1);
+                         sum=data[x][1];
+                      }
+                   }
+                   out.push([sumtime,sum]);
+                   data=out;
+                }
             }
-
-            else
-               ;
 
             stats.calc(data);
-
             plot();
         }
         
@@ -320,6 +325,7 @@
                 intervalrange=interval;
 
             var options = {
+                canvas: true,
                 bars: { show: true, align: "center", barWidth: 0.75*intervalrange*1000, fill: true},
                 xaxis: { mode: "time", timezone: "browser",
                 min: view.start, max: view.end, minTickSize: [intervalrange, "second"] },
@@ -359,18 +365,20 @@
             draw();
         });
         
+        $(document).on('window.resized hidden.sidebar.collapse shown.sidebar.collapse',vis_resize);
         
-        $(window).resize(function(){
+        function vis_resize() {
             var width = placeholder_bound.width();
-            var height = width * 0.5;
+            var height = placeholder_bound.width();
 
             placeholder.width(width);
-            placeholder_bound.height(height);
-            placeholder.height(height-top_offset);
+            // placeholder_bound.height(height);
+            // placeholder.height(height-top_offset);
+            placeholder.height('75vh');
 
             if (embed) placeholder.height($(window).height()-top_offset);
             plot();
-        });
+        }
     });
 </script>
 

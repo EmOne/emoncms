@@ -10,11 +10,7 @@
 ?>
 
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.touch.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/date.format.min.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/daysmonthsyears.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/zoom/view.js"></script>
@@ -64,9 +60,9 @@
 <script id="source" language="javascript" type="text/javascript">
   var kwhd = <?php echo $kwhd; ?>;
   var power = <?php echo $power; ?>;
-  var path = "<?php echo $path; ?>";
   var apikey = "<?php echo $apikey; ?>";
   var embed = <?php echo $embed; ?>;
+  var delta = <?php echo $delta; ?>;
   
   var timeWindow = (3600000*24.0*365*5);   //Initial time window
   var start = +new Date - timeWindow;  //Get start time
@@ -96,10 +92,26 @@
 
   var bot_kwhd_text = "";
 
-  get_feed_data_async(vis_feed_kwh_data_callback,null,kwhd,start,end,3600*24,1,1); // get 5 years of daily kw_data
+  var d = new Date()
+  var n = d.getTimezoneOffset();
+  var offset = n / -60;
+  start = Math.floor(start / 86400000) * 86400000;
+  end = Math.floor(end / 86400000) * 86400000;
+  start -= offset * 3600000;
+  end -= offset * 3600000;
+  get_feed_data_DMY_async(vis_feed_kwh_data_callback,null,kwhd,start,end,"daily"); // get 5 years of daily kw_data
   
   //load feed kwh_data
   function vis_feed_kwh_data_callback(context,data){
+  
+    if (window.delta==1) {
+        var tmp = [];
+        for (var n=1; n<data.length; n++) {
+            tmp.push([data[n-1][0], data[n][1]-data[n-1][1]]);
+        }
+        data = tmp;
+    }
+  
     kwh_data = data;
     var total = 0, ndays=0;
     for (z in kwh_data) {
@@ -208,7 +220,9 @@
   $('#left').click(function () {inst_panleft(); vis_feed_data();});
   $('.graph-time').click(function () {inst_timewindow($(this).attr("time")); vis_feed_data();});
 
-  $(window).resize(function(){
+  $(document).on('window.resized hidden.sidebar.collapse shown.sidebar.collapse',vis_resize);
+  
+  function vis_resize() {
     $('#placeholder').width($('#placeholder_bound').width());
     $('#placeholder').height($('#placeholder_bound').height()-80);
     if (embed) $('#placeholder').height($(window).height()-80);
@@ -216,7 +230,7 @@
     if (view==1) set_monthly_view();
     if (view==2) set_daily_view();
     if (view==3) vis_feed_data();
-  });
+  }
   
   // Graph buttons and navigation efects for mouse and touch
   $("#placeholder").mouseenter(function(){

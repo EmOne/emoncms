@@ -17,9 +17,12 @@ i.e. You should end up with all the files in the directory public_html/emoncms/
 
 3) Create a mysql database for your emoncms installation, note down its name, username and password.
 
-4) In your shared hosting /home/username folder create a folder called emoncmsdata to hold your emoncms feed data. (Note: NOT public_html as the data files should not be publicly accessible).
+4) In your shared hosting /home/username folder create a folder called emoncmsdata to hold your emoncms feed data.  
+(Note: NOT public_html as the data files should not be publicly accessible).  
 Then create three folders within your emoncmsdata folder called: phpfiwa, phpfina and phptimeseries
 
-5) In the emoncms app directory make a copy of default_settings.php and call it settings.php. Open settings.php and enter your mysql username, password and database. In the feed_settings section uncomment the datadir defenitions and set them to the location of each of the feed engine data folders on your system.
+5) In the emoncms app directory make a copy of example.settings.ini and call it settings.ini.  
 
-6) Thats it, emoncms should now be ready to use! 
+6)  Open settings.ini and edit as applicable.
+
+6) That's it, emoncms should now be ready to use!

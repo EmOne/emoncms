@@ -21,7 +21,7 @@
     $log = new EmonLogger(__FILE__);
     $log->info("Starting REDIS Input Queue Processor script");
 
-    $mysqli = @new mysqli($server,$username,$password,$database);
+    $mysqli = @new mysqli($server,$username,$password,$database,$port);
     if ($mysqli->connect_error) { $log->error("Can't connect to database:". $mysqli->connect_error);  die('Check log\n'); }
 
     if ($redis_enabled) {
@@ -113,7 +113,7 @@
             $dbinputs = $input->get_inputs($userid);
             
             if (!isset($dbinputs[$nodeid]) && (count($dbinputs) >= $max_node_id_limit )) {
-                $log->error("Reached the maximal allowed number of diferent NodeIds, limit is $max_node_id_limit. Node '$nodeid' was ignored.");
+                $log->error("Reached the maximal allowed number of different NodeIds, limit is $max_node_id_limit. Node '$nodeid' was ignored.");
             } else {
 
                 $tmp = array();

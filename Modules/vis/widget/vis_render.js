@@ -16,10 +16,11 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",
-      "options":["feedid"],
-      "optionstype":["feedid"],
-      "optionsname":[_Tr("Feed")],
-      "optionshint":[_Tr("Feed source")],
+      "options":["feedid","colour","initzoom","kw"],
+      "optionstype":["feedid","colour_picker","dropbox","boolean"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Colour"),_Tr_Vis("Zoom"),'kW'],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Line colour in hex. Blank is use default."),_Tr_Vis("Default visible window interval"),_Tr_Vis("Display power as kW")],
+      "optionsdata": [ , , [["1", "1 "+_Tr_Vis("minute")],["5", "5 "+_Tr_Vis("minutes")],["15", "15 "+_Tr_Vis("minutes")],["30", "30 "+_Tr_Vis("minutes")],["60", "1 "+ _Tr_Vis("hour")]], ],
       "html":""
     },
 
@@ -27,11 +28,11 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",  
-      "options":["feedid","colour","units","dp","scale","fill"],
-      "optionstype":["feedid","colour_picker","value","value","value","value"],
-      "optionsname":[_Tr("Feed"),_Tr("Colour"),_Tr("units"),_Tr("dp"),_Tr("scale"),_Tr("Fill")],
-      "optionshint":[_Tr("Feed source"),_Tr("Line colour in hex. Blank is use default."),_Tr("units"),_Tr("Decimal points"),_Tr("Scale by"),_Tr("Fill value")],
-      
+      "options":["feedid","colour","units","dp","scale","fill","initzoom"],
+      "optionstype":["feedid","colour_picker","value","value","value","value","dropbox"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Colour"),_Tr_Vis("units"),_Tr_Vis("dp"),_Tr_Vis("scale"),_Tr_Vis("Fill"),_Tr_Vis("Zoom")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Line colour in hex. Blank is use default."),_Tr_Vis("units"),_Tr_Vis("Decimal points"),_Tr_Vis("Scale by"),_Tr_Vis("Fill value"),_Tr_Vis("Default visible window interval")],
+      "optionsdata": [ , , , , , , [["1", _Tr_Vis("Day")],["7", _Tr_Vis("Week")],["30", _Tr_Vis("Month")],["365", _Tr_Vis("Year")]] ],
       "html":""
     },
     
@@ -39,21 +40,11 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",
-      "options":["feedid","colour","interval","units","dp","scale","delta"],
-      "optionstype":["feedid","colour_picker","value","value","value","value","value"],
-      "optionsname":[_Tr("Feed"),_Tr("Colour"),_Tr("interval"),_Tr("units"),_Tr("dp"),_Tr("scale"),_Tr("delta")],
-      "optionshint":[_Tr("Feed source"),_Tr("Line colour in hex. Blank is use default."),_Tr("Interval (seconds)-you can set \"d\" for day, \"m\" for month, or \"y\" for year"),_Tr("Units"),_Tr("Decimal points"),_Tr("Scale by"),_Tr("St to \"1\" to show diff between each bar. It displays an ever-increasing Wh feed as a daily\/montly\/yeayly kWh feed (set interval to \"d\", or \"m\", or \"y\")")],
-      "html":""
-    },
-
-    "timestoredaily":
-    {
-      "offsetx":0,"offsety":0,"width":400,"height":300,
-      "menu":"Visualisations",
-      "options":["feedid","units"],
-      "optionstype":["feedid","value"],
-      "optionsname":[_Tr("Feed"),_Tr("Units")],
-      "optionshint":[_Tr("Feed source"),_Tr("Units to show")],
+      "options":["feedid","colour","interval","units","dp","scale","delta","mode","initzoom"],
+      "optionstype":["feedid","colour_picker","value","value","value","value","boolean","boolean","dropbox"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Colour"),_Tr_Vis("Interval"),_Tr_Vis("units"),_Tr_Vis("dp"),_Tr_Vis("scale"),_Tr_Vis("delta"),_Tr_Vis("mode"),_Tr_Vis("Zoom")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Line colour in hex. Blank is use default."),_Tr_Vis("Interval (seconds)-you can set \"d\" for day, \"m\" for month, or \"y\" for year"),_Tr_Vis("Units"),_Tr_Vis("Decimal points"),_Tr_Vis("Scale by"),_Tr_Vis("Show difference between each bar"),_Tr_Vis("Mode set to 'daily' can be used instead of interval for timezone based daily data"),_Tr_Vis("Default visible window interval")],
+      "optionsdata": [ , , , , , , , , [["1", _Tr_Vis("Day")],["7", _Tr_Vis("Week")],["30", _Tr_Vis("Month")],["365", _Tr_Vis("Year")]] ],
       "html":""
     },
 
@@ -61,10 +52,10 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",
-      "options":["power","kwhd","currency","currency_after_val","pricekwh"],
-      "optionstype":["feedid","feedid","value","value","value"],
-      "optionsname":[_Tr("Power"),_Tr("kwhd"),_Tr("Currency"),_Tr("Currency position"),_Tr("Kwh price")],
-      "optionshint":[_Tr("Power to show"),_Tr("kwhd source"),_Tr("Currency to show"),_Tr("0 = before value, 1 = after value"),_Tr("Set kwh price")],
+      "options":["power","kwhd","currency","currency_after_val","pricekwh","delta"],
+      "optionstype":["feedid","feedid","value","value","value","boolean"],
+      "optionsname":[_Tr_Vis("Power"),_Tr_Vis("kwhd"),_Tr_Vis("Currency"),_Tr_Vis("Currency position"),_Tr_Vis("Kwh price"),_Tr_Vis("delta")],
+      "optionshint":[_Tr_Vis("Power to show"),_Tr_Vis("kwhd source"),_Tr_Vis("Currency to show"),_Tr_Vis("0 = before value, 1 = after value"),_Tr_Vis("Set kwh price"),_Tr_Vis("Show difference between each bar")],
       "html":""
     },
 
@@ -72,43 +63,10 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",
-      "options":["power","kwhd"],
-      "optionstype":["feedid","feedid"],
-      "optionsname":[_Tr("Power"),_Tr("kwhd")],
-      "optionshint":[_Tr("Power to show"),_Tr("kwhd source")],
-      "html":""
-    },
-
-    "histgraph":
-    {
-      "offsetx":0,"offsety":0,"width":400,"height":300,
-      "menu":"Visualisations",
-      "options":["feedid"],
-      "optionstype":["feedid"],
-      "optionsname":[_Tr("Feed")],
-      "optionshint":[_Tr("Feed source")],
-      "html":""
-    },
-
-    "threshold":
-    {
-      "offsetx":0,"offsety":0,"width":400,"height":300,
-      "menu":"Visualisations",
-      "options":["feedid","thresholdA","thresholdB"],
-      "optionstype":["feedid","value","value"],
-      "optionsname":[_Tr("Feed"),_Tr("Threshold A"),_Tr("Threshold B")],
-      "optionshint":[_Tr("Feed source"),_Tr("Threshold A used"),_Tr("Threshold B used")],
-      "html":""
-    },
-
-    "orderthreshold":
-    {
-      "offsetx":0,"offsety":0,"width":400,"height":300,
-      "menu":"Visualisations",
-      "options":["feedid","power","thresholdA","thresholdB"],
-      "optionstype":["feedid","feedid","value","value"],
-      "optionsname":[_Tr("Feed"),_Tr("Power"),_Tr("Threshold A"),_Tr("Threshold B")],
-      "optionshint":[_Tr("Feed source"),_Tr("Power"),_Tr("Threshold A used"),_Tr("Threshold B used")],
+      "options":["power","kwhd","delta"],
+      "optionstype":["feedid","feedid","boolean"],
+      "optionsname":[_Tr_Vis("Power"),_Tr_Vis("kwhd"),_Tr_Vis("delta")],
+      "optionshint":[_Tr_Vis("Power to show"),_Tr_Vis("kwhd source"),_Tr_Vis("Show difference between each bar")],
       "html":""
     },
 
@@ -116,10 +74,10 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",
-      "options":["feedid"],
-      "optionstype":["feedid"],
-      "optionsname":[_Tr("Feed")],
-      "optionshint":[_Tr("Feed source")],
+      "options":["feedid","delta"],
+      "optionstype":["feedid","boolean"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("delta")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Show difference between each bar")],
       "html":""
     },
 
@@ -127,10 +85,10 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",
-      "options":["bottom","top"],
-      "optionstype":["feedid","feedid"],
-      "optionsname":[_Tr("Bottom"),_Tr("Top")],
-      "optionshint":[_Tr("Bottom feed value"),_Tr("Top feed value")],
+      "options":["bottom","top","colourt","colourb","delta"],
+      "optionstype":["feedid","feedid","colour_picker","colour_picker","boolean"],
+      "optionsname":[_Tr_Vis("Bottom"),_Tr_Vis("Top"),_Tr_Vis("Top colour"),_Tr_Vis("Bottom colour"),_Tr_Vis("delta")],
+      "optionshint":[_Tr_Vis("Bottom feed value"),_Tr_Vis("Top feed value"),_Tr_Vis("Top colour"),_Tr_Vis("Bottom colour"),_Tr_Vis("Show difference between each bar")],
       "html":""
     },
 
@@ -138,21 +96,10 @@ function vis_widgetlist(){
     {
       "offsetx":0,"offsety":0,"width":400,"height":300,
       "menu":"Visualisations",
-      "options":["solar","consumption"],
-      "optionstype":["feedid","feedid"],
-      "optionsname":[_Tr("Solar"),_Tr("Consumption")],
-      "optionshint":[_Tr("Solar feed value"),_Tr("Consumption feed value")],
-      "html":""
-    },
-
-    "smoothie":
-    {
-      "offsetx":0,"offsety":0,"width":400,"height":300,
-      "menu":"Visualisations",
-      "options":["feedid","ufac"],
-      "optionstype":["feedid","value"],
-      "optionsname":[_Tr("Feed"),_Tr("Ufac")],
-      "optionshint":[_Tr("Feed source"),_Tr("Ufac value")],
+      "options":["solar","consumption","delta"],
+      "optionstype":["feedid","feedid","boolean"],
+      "optionsname":[_Tr_Vis("Solar"),_Tr_Vis("Consumption"),_Tr_Vis("delta")],
+      "optionshint":[_Tr_Vis("Solar feed value"),_Tr_Vis("Consumption feed value"),_Tr_Vis("Show difference between each bar")],
       "html":""
     },
 
@@ -162,9 +109,78 @@ function vis_widgetlist(){
       "menu":"Visualisations",
       "options":["mid"],
       "optionstype":["dropbox"],
-      "optionsname":[_Tr("Multigraph")],
-      "optionshint":[_Tr("Managed on Visualization module")],
+      "optionsname":[_Tr_Vis("Multigraph")],
+      "optionshint":[_Tr_Vis("Managed on Visualization module")],
       "optionsdata":[multigraphsDropBoxOptions], // Gets multigraphs from vis_widget.php multigraphsDropBoxOptions variable
+      "html":""
+    },
+
+    "timestoredaily":
+    {
+      "offsetx":0,"offsety":0,"width":400,"height":300,
+      "menu":"Visualisations",
+      "options":["feedid","units","initzoom"],
+      "optionstype":["feedid","value","dropbox"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Units"),_Tr_Vis("Zoom")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Units to show"),_Tr_Vis("Default visible window interval")],
+      "optionsdata": [ , , [["1", _Tr_Vis("Day")],["7", _Tr_Vis("Week")],["30", _Tr_Vis("Month")],["365", _Tr_Vis("Year")]] ],
+      "html":""
+    },
+        
+    "histgraph":
+    {
+      "offsetx":0,"offsety":0,"width":400,"height":300,
+      "menu":"Visualisations",
+      "options":["feedid"],
+      "optionstype":["feedid"],
+      "optionsname":[_Tr_Vis("Feed")],
+      "optionshint":[_Tr_Vis("Feed source")],
+      "html":""
+    },
+
+    "threshold":
+    {
+      "offsetx":0,"offsety":0,"width":400,"height":300,
+      "menu":"Visualisations",
+      "options":["feedid","thresholdA","thresholdB","initzoom"],
+      "optionstype":["feedid","value","value","dropbox"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Threshold A"),_Tr_Vis("Threshold B"),_Tr_Vis("Zoom")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Threshold A used"),_Tr_Vis("Threshold B used"),_Tr_Vis("Default visible window interval")],
+      "optionsdata": [ , , , [["1", _Tr_Vis("Day")],["7", _Tr_Vis("Week")],["30", _Tr_Vis("Month")],["365", _Tr_Vis("Year")]] ],
+      "html":""
+    },
+
+    "orderthreshold":
+    {
+      "offsetx":0,"offsety":0,"width":400,"height":300,
+      "menu":"Visualisations",
+      "options":["feedid","power","thresholdA","thresholdB"],
+      "optionstype":["feedid","feedid","value","value"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Power"),_Tr_Vis("Threshold A"),_Tr_Vis("Threshold B")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Power"),_Tr_Vis("Threshold A used"),_Tr_Vis("Threshold B used")],
+      "html":""
+    },
+    
+    "smoothie":
+    {
+      "offsetx":0,"offsety":0,"width":400,"height":300,
+      "menu":"Visualisations",
+      "options":["feedid","ufac"],
+      "optionstype":["feedid","value"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Ufac")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Ufac value")],
+      "html":""
+    },
+
+    "timecompare":
+    {
+      "offsetx":0,"offsety":0,"width":400,"height":300,
+      "menu":"Visualisations",  
+      "options":["feedid","fill","depth","npoints","initzoom"],
+      "optionstype":["feedid","value","value","value","dropbox"],
+      "optionsname":[_Tr_Vis("Feed"),_Tr_Vis("Fill"),_Tr_Vis("Depth"),_Tr_Vis("Data points"),_Tr_Vis("Zoom")],
+      "optionshint":[_Tr_Vis("Feed source"),_Tr_Vis("Fill under line"),_Tr_Vis("Number of lines"),_Tr_Vis("Default: 800"),_Tr_Vis("Default visible window interval")],
+      "optionsdata": [ , , , , [["8", "8 " + _Tr_Vis("Hours")],["24", _Tr_Vis("Day")],["168", _Tr_Vis("Week")],["672", _Tr_Vis("Month")],["8760", _Tr_Vis("Year")]] ],
       "html":""
     }
   }

@@ -10,14 +10,12 @@
 ?>
 
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.touch.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.stack.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.stack.min.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/api.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/inst.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/vis.helper.js"></script>
 
 <?php if (!$embed) { ?>
 <h2><?php echo _("Threshold"); ?></h2>
@@ -55,10 +53,12 @@
   var thresholdA = <?php echo $thresholdA; ?>;
   var thresholdB = <?php echo $thresholdB; ?>;
 
-  var path = "<?php echo $path; ?>";
   var apikey = "<?php echo $apikey; ?>";
+  
+  var initzoom = urlParams.initzoom;
+  if (initzoom==undefined || initzoom=='' || initzoom < 1) initzoom = '7'; // Initial zoom default to 7 days (1 week)
 
-  var timeWindow = (3600000*24.0*7);        //Initial time window
+  var timeWindow = (3600000*24.0*initzoom);        //Initial time window
   var start = ((new Date()).getTime())-timeWindow;    //Get start time
   var end = (new Date()).getTime();       //Get end time
 
@@ -68,17 +68,20 @@
 
   vis_feed_data();
 
-  $(window).resize(function(){
+  $(document).on('window.resized hidden.sidebar.collapse shown.sidebar.collapse',vis_resize);
+  
+  function vis_resize() {
     $('#graph').width($('#graph_bound').width());
     if (embed) $('#graph').height($(window).height());
     vis_feed_data();
-  });
+  }
 
   function vis_feed_data()
   {
 
     $.plot($("#graph"), [{color: "#c1a81f", data:dataA}, {color: "#dec225", data:dataB}, {color: "#deb368", data:dataC}],
     {
+      canvas: true,
       series: {
         stack: true,
         bars: { show: true,align: "center",barWidth: (3600*18*1000),fill: true }

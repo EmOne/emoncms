@@ -16,7 +16,7 @@ function input_controller()
 {
     //return array('content'=>"ok");
 
-    global $mysqli, $redis, $user, $session, $route, $max_node_id_limit, $feed_settings;
+    global $mysqli, $redis, $user, $session, $route, $settings;
 
     // There are no actions in the input module that can be performed with less than write privileges
     if (!$session['write']) return array('content'=>false);
@@ -25,13 +25,13 @@ function input_controller()
     $result = false;
 
     require_once "Modules/feed/feed_model.php";
-    $feed = new Feed($mysqli,$redis, $feed_settings);
+    $feed = new Feed($mysqli,$redis, $settings["feed"]);
 
     require_once "Modules/input/input_model.php";
     $input = new Input($mysqli,$redis, $feed);
 
     require_once "Modules/process/process_model.php";
-    $process = new Process($mysqli,$input,$feed);
+    $process = new Process($mysqli, $input, $feed, $user->get_timezone($session['userid']));
 
 
 
@@ -40,6 +40,7 @@ function input_controller()
         if ($route->action == 'api') $result = view("Modules/input/Views/input_api.php", array());
         if ($route->action == 'node') $result =  view("Modules/input/Views/input_node.php", array());
         if ($route->action == 'process') $result = view("Modules/input/Views/process_list.php",array('inputid'=> intval(get('inputid'))));
+        if ($route->action == 'view') $result =  view("Modules/input/Views/input_view.php", array());
     }
 
     if ($route->format == 'json')
@@ -197,8 +198,7 @@ function input_controller()
             $valid = true; $error = "";
 
             $nodeid = get('node');
-            if ($nodeid && !is_numeric($nodeid)) { $valid = false; $error = "Nodeid must be an integer between 0 and 30, nodeid given was not numeric"; }
-            if ($nodeid<0 || $nodeid>30) { $valid = false; $error = "nodeid must be an integer between 0 and 30, nodeid given was out of range"; }
+            if ($nodeid && !is_numeric($nodeid)) { $valid = false; $error = "Nodeid must be an integer, nodeid given was not numeric"; }
             $nodeid = (int) $nodeid;
 
             if (isset($_GET['time'])) $time = (int) $_GET['time']; else $time = time();
@@ -214,7 +214,7 @@ function input_controller()
 
             if ($datain!="")
             {
-                $json = preg_replace('/[^\p{L}_\p{N}\s-.:,]/u','',$datain);
+                $json = preg_replace('/[^\p{L}_\p{N}\s\-.:,]/u','',$datain);
                 $datapairs = explode(',', $json);
 
                 $csvi = 0;
@@ -272,6 +272,7 @@ function input_controller()
 
             if ($route->action == "process")
             {
+                if ($route->subaction == "set") $result = $input->set_processlist(get('inputid'), post('processlist'));
                 if ($route->subaction == "add") $result = $input->add_process($process,$session['userid'], get('inputid'), get('processid'), get('arg'), get('newfeedname'), get('newfeedinterval'),get('engine'));
                 if ($route->subaction == "list") $result = $input->get_processlist(get("inputid"));
                 if ($route->subaction == "delete") $result = $input->delete_process(get("inputid"),get('processid'));

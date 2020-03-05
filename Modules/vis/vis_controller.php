@@ -12,12 +12,12 @@
 
   function vis_controller()
   {
-    global $mysqli, $redis, $session, $route, $user, $feed_settings;
+    global $mysqli, $redis, $session, $route, $user, $settings;
 
     $result = false;
 
     require "Modules/feed/feed_model.php";
-    $feed = new Feed($mysqli,$redis, $feed_settings);
+    $feed = new Feed($mysqli,$redis, $settings['feed']);
 
     require "Modules/vis/multigraph_model.php";
     $multigraph = new Multigraph($mysqli);
@@ -72,7 +72,19 @@
                         if (isset($option[3])) $default = $option[3]; else $default = "";
 
                         if ($type==0 || $type==1 || $type==2 || $type==3) {
-                            $feedid = (int) get($key);
+                            $feedid = get($key);
+                            
+                            // Option to use tag:name feed reference format
+                            // only works with feeds belonging to the active session
+                            if (!is_numeric($feedid)) {
+                                $tagname = explode(":",$feedid);
+                                if (count($tagname)==2) {
+                                    $feedid = $feed->exists_tag_name($session['userid'],$tagname[0],$tagname[1]);
+                                }
+                            } else {
+                                $feedid = (int) $feedid;
+                            }
+                            
                             if ($feedid) {
                               $f = $feed->get($feedid);
                               $array[$key] = $feedid;
@@ -84,12 +96,14 @@
                               $array['valid'] = false;
                             }
                         }
-                        else if ($type==4)
-                            // Boolean not used at the moment
-                            if (get($key)==true || get($key)==false)
-                                $array[$key] = get($key); else $array[$key] = $default;
+                        else if ($type==4) // Boolean
+                            if (get($key) == "true" || get($key) == 1)
+                                $array[$key] = 1;
+                            else if (get($key) || get($key) == "false" || get($key) == 0)
+                                $array[$key] = 0;
+                            else $array[$key] = $default;
                         else if ($type==5)
-                            $array[$key] = preg_replace('/[^\p{L}_\p{N}\s£$€¥]/u','',get($key))?get($key):$default;
+                            $array[$key] = preg_replace('/[^\p{L}_\p{N}\s£$€¥₽]/u','',get($key))?get($key):$default;
                         else if ($type==6)
                             $array[$key] = str_replace(',', '.', floatval((get($key)?get($key):$default)));
                         else if ($type==7)
@@ -107,8 +121,8 @@
 
                         # we need to either urlescape the colour, or just scrub out invalid chars. I'm doing the second, since
                         # we can be fairly confident that colours are eiter a hex or a simple word (e.g. "blue" or such)
-                        if ($key == "colour")
-                            $array[$key] = preg_replace('/[^\dA-Za-z]/','',$array[$key]);
+                        else if ($type==9) // Color
+                            $array[$key] = preg_replace('/[^\dA-Za-z]/','',get($key))?get($key):$default;
                     }
                 }
 

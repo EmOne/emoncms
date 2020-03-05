@@ -8,19 +8,22 @@ class Email {
     private $message;
 
     function __construct(){
-        global $smtp_email_settings;
+        global $settings;
         $this->log = new EmonLogger(__FILE__);
 
         $this->message = null;
         // include SwiftMailer. path from a PEAR install,
-        $this->have_swift = @include_once ("Swift/swift_required.php");
+        $this->have_swift = @include_once ("swift_required.php");
         // path from module lib
         if (!$this->have_swift) {
            $this->have_swift = @include_once ("Lib/swiftmailer/swift_required.php");
         }
         if ($this->have_swift){
             $this->message = Swift_Message::newInstance();
-            $this->message->setFrom($smtp_email_settings['from']);
+            
+            $from = array();
+            $from[$settings['smtp']['from_email']] = $settings['smtp']['from_name'];
+            $this->message->setFrom($from);
         }
     }
 
@@ -33,11 +36,18 @@ class Email {
     }
 
     function from($from) {
-        if ($this.check()) $this->message->setFrom($from);
+        if ($this->check()) $this->message->setFrom($from);
     }
 
     function to($to) {
         if ($this->check()) $this->message->setTo($to);
+    }
+    
+    function cc($cc) {
+        if ($this->check()) $this->message->setCc($cc);
+    }
+    function bcc($bcc) {
+        if ($this->check()) $this->message->setBcc($bcc);
     }
 
     function subject($subject) {
@@ -48,14 +58,18 @@ class Email {
         if ($this->check()) $this->message->setBody($body, $type);
     }
 
+    function attach($filepath, $contentType = null) {
+        if ($this->check()) $this->message->attach(Swift_Attachment::fromPath($filepath,$contentType));
+    }
+
     function send(){
-        global $smtp_email_settings;
+        global $settings;
         if ($this->check()) {
             try {
-                $transport = Swift_SmtpTransport::newInstance($smtp_email_settings['host'], $smtp_email_settings['port']);
-                if ($smtp_email_settings['encryption']) $transport->setEncryption($smtp_email_settings['encryption']);
-                if ($smtp_email_settings['username']) $transport->setUsername($smtp_email_settings['username']);
-                if ($smtp_email_settings['password']) $transport->setPassword($smtp_email_settings['password']);
+                $transport = Swift_SmtpTransport::newInstance($settings['smtp']['host'], $settings['smtp']['port']);
+                if (isset($settings['smtp']['encryption']) && $settings['smtp']['encryption']) $transport->setEncryption($settings['smtp']['encryption']);
+                if (isset($settings['smtp']['username'])) $transport->setUsername($settings['smtp']['username']);
+                if (isset($settings['smtp']['password'])) $transport->setPassword($settings['smtp']['password']);
 
                 $mailer = Swift_Mailer::newInstance($transport);
                 $mailer->send($this->message);

@@ -10,13 +10,11 @@
     global $path, $embed;
 ?>
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.stack.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/date.format.min.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.stack.min.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/api.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/vis.helper.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/daysmonthsyears.js"></script>
 <?php if (!$embed) { ?>
 <h2><?php echo _("Stacked"); ?></h2>
@@ -31,18 +29,49 @@
 <script id="source" language="javascript" type="text/javascript">
   var kwhdA = <?php echo $bottom; ?>;
   var kwhdB = <?php echo $top; ?>;
-  var path = "<?php echo $path; ?>";
-  var apikey = "<?php echo $apikey?>";
+  var delta = <?php echo $delta; ?>;
+  
+  var colourb = urlParams.colourb;
+  if (colourb==undefined || colourb=='') colourb = "0096ff";
+  var colourt = urlParams.colourt;
+  if (colourt==undefined || colourt=='') colourt = "7cc9ff";
+
+  // Some browsers want the colour codes to be prepended with a "#". Therefore, we
+  // add one if it's not already there
+  if (colourb.indexOf("#") == -1) {
+    colourb = "#" + colourb;
+  }
+  if (colourt.indexOf("#") == -1) {
+    colourt = "#" + colourt;
+  }
+
+  var apikey = "<?php echo $apikey; ?>";
 
   var timeWindow = (3600000*24.0*365*5);   //Initial time window
   var start = +new Date - timeWindow;  //Get start time
   var end = +new Date; 
   
+  var d = new Date()
+  var n = d.getTimezoneOffset();
+  var offset = n / -60;
   start = Math.floor(start / 86400000) * 86400000;
   end = Math.floor(end / 86400000) * 86400000;
+  start -= offset * 3600000;
+  end -= offset * 3600000;
   
-  var dataA = get_feed_data(kwhdA,start,end,3600*24,1,1);
-  var dataB = get_feed_data(kwhdB,start,end,3600*24,1,1);
+  var dataA = get_feed_data_DMY(kwhdA,start,end,"daily");
+  var dataB = get_feed_data_DMY(kwhdB,start,end,"daily");
+  
+  if (delta==1) {
+      var tmpA = [];
+      var tmpB = [];
+      for (var n=1; n<dataA.length; n++) {
+          tmpA.push([dataA[n-1][0], dataA[n][1]-dataA[n-1][1]]);
+          tmpB.push([dataB[n-1][0], dataB[n][1]-dataB[n-1][1]]);
+      }
+      dataA = tmpA;
+      dataB = tmpB;
+  }
 
   var embed = <?php echo $embed; ?>;
   $('#graph').width($('#graph_bound').width());
@@ -60,11 +89,13 @@
   monthsA = get_months(dataA);
   monthsB = get_months(dataB);
 
-  $(window).resize(function(){
+  $(document).on('window.resized hidden.sidebar.collapse shown.sidebar.collapse',vis_resize);
+  
+  function vis_resize() {
     $('#graph').width($('#graph_bound').width());
     if (embed) $('#graph').height($(window).height());
     bargraph(monthsA.data,monthsB.data,3600*24*20,"month");
-  });
+  }
 
   bargraph(monthsA.data,monthsB.data,3600*24*20,"month");
 
@@ -94,9 +125,6 @@
       d.setTime(item.datapoint[0]);
       var mdate = new Date(item.datapoint[0]);
 
-      console.log(item);
-      console.log(daysA);
-      console.log(daysB);
       var type = "", value = 0;
       if (item.seriesIndex == 0 && view==0) {value = monthsA.data[item.dataIndex][1];};
       if (item.seriesIndex == 1 && view==0) {value = monthsB.data[item.dataIndex][1];};
@@ -110,8 +138,9 @@
   });
 
   function bargraph(dataA,dataB,barwidth, mode){
-    $.plot($("#graph"), [ {color: "#0096ff", data:dataA}, {color: "#7cc9ff", data:dataB}],
+    $.plot($("#graph"), [ {color: colourb, data:dataA}, {color: colourt, data:dataB}],
     {
+      canvas: true,
       series: {
         stack: true,
         bars: { show: true,align: "center",barWidth: (barwidth*1000),fill: true }

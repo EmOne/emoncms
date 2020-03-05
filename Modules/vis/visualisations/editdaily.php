@@ -12,10 +12,7 @@
 ?>
 
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.touch.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/api.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/inst.js"></script>
@@ -48,7 +45,7 @@
 </div>
 
 
-<div style="width:100% height:50px; background-color:#ddd; padding:10px; margin:10px;">
+<div style="width:100%; height:50px; background-color:#ddd; padding:10px; margin:10px;">
     <?php echo _("Edit feed_"); ?><?php echo $feedid; ?> <?php echo _("@ time:"); ?> <input type="text" id="time" style="width:150px;" value="" /> <?php echo _("new value:"); ?>
     <input type="text" id="newvalue" style="width:150px;" value="" />
     <button id="okb" class="btn btn-info"><?php echo _('Save'); ?></button>
@@ -59,10 +56,9 @@
   $('#graph').width($('#graph_bound').width());
   $('#graph').height($('#graph_bound').height());
 
-  var feedid = "<?php echo $feedid; ?>";
+  var feedid = <?php echo $feedid; ?>;
   var feedname = "<?php echo $feedidname; ?>";
   var type = "<?php echo $type; ?>";
-  var path = "<?php echo $path; ?>";
   var apikey = "<?php echo $write_apikey; ?>";
 
   var timeWindow = (3600000*24.0*7);        //Initial time window
@@ -72,7 +68,9 @@
   vis_feed_data();
 
   function vis_feed_data() {
-    var graph_data = get_feed_data(feedid,start,end,3600*24,1,1);
+    start = Math.floor(start / 86400000) * 86400000;
+    end = Math.ceil(end / 86400000) * 86400000;
+    var graph_data = get_feed_data(feedid,start,end,3600*24,1,0);
     //var stats = power_stats(graph_data);
     //$("#stats").html("Average: "+stats['average'].toFixed(0)+"W | "+stats['kwh'].toFixed(2)+" kWh");
 
@@ -80,6 +78,7 @@
     if (type == 2) plotdata = {data: graph_data, bars: { show: true, align: "center", barWidth: 3600*18*1000, fill: true}};
 
     var plot = $.plot($("#graph"), [plotdata], {
+      canvas: true,
       grid: { show: true, hoverable: true, clickable: true },
       xaxis: { mode: "time", timezone: "browser", min: start, max: end },
       selection: { mode: "x" },
@@ -114,9 +113,10 @@
     var time = $("#time").val();
     var newvalue = $("#newvalue").val();
 
+    var updatetime = 0;
     $.ajax({
       url: path+'feed/update.json',
-      data: "&apikey="+apikey+"&id="+feedid+"&time="+time+"&value="+newvalue,
+      data: "&apikey="+apikey+"&id="+feedid+"&time="+time+"&value="+newvalue+"&updatetime="+updatetime,
       dataType: 'json',
       async: false,
       success: function() {}

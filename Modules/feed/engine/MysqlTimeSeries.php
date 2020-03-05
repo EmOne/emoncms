@@ -1,6 +1,7 @@
 <?php
+include_once dirname(__FILE__) . '/shared_helper.php';
 
-class MysqlTimeSeries
+class MysqlTimeSeries implements engine_methods
 {
     protected $mysqli;
     protected $log;
@@ -27,6 +28,7 @@ class MysqlTimeSeries
     */
     public function create($feedid,$options)
     {
+        $feedid= (int) $feedid;
         $feedname = "feed_".trim($feedid)."";
 
         $result = $this->mysqli->query("CREATE TABLE $feedname (time INT UNSIGNED NOT NULL, data FLOAT NOT NULL, UNIQUE (time)) ENGINE=MYISAM");
@@ -40,6 +42,7 @@ class MysqlTimeSeries
     */
     public function delete($feedid)
     {
+        $feedid= (int) $feedid;
         $this->mysqli->query("DROP TABLE feed_".$feedid);
     }
 
@@ -50,6 +53,7 @@ class MysqlTimeSeries
     */
     public function get_meta($feedid)
     {
+        $feedid= (int) $feedid;
         $meta = new stdClass();
         $meta->id = $feedid;
         $meta->start_time = 0;
@@ -66,6 +70,7 @@ class MysqlTimeSeries
     */
     public function get_feed_size($feedid)
     {
+        $feedid= (int) $feedid;
         $feedname = "feed_".$feedid;
         $result = $this->mysqli->query("SHOW TABLE STATUS LIKE '$feedname'");
         $row = $result->fetch_array();
@@ -80,6 +85,7 @@ class MysqlTimeSeries
      * @param integer $time The unix timestamp of the data point, in seconds
      * @param float $value The value of the data point
      * @param arg $value optional padding mode argument
+     * $feedname, $time and $value are all typecased in feed->insert and feed->update
     */
     public function post($feedid,$time,$value,$arg=null)
     {
@@ -129,25 +135,22 @@ class MysqlTimeSeries
 
         $result = $this->mysqli->query("SELECT time, data FROM $feedname ORDER BY time Desc LIMIT 1");
         if ($result && $row = $result->fetch_array()){
-            return array('time'=>$row['time'], 'value'=>$row['data']);
+            if ($row['data'] !== null) $row['data'] = (float) $row['data'];
+            return array('time'=>(int)$row['time'], 'value'=>$row['data']);
         } else {
             return false;
         }
     }
 
     /**
-     * Return the data for the given timerange
+     * Return the data for the given timerange - cf shared_helper.php
      *
-     * @param integer $feedid The id of the feed to fetch from
-     * @param integer $start The unix timestamp in ms of the start of the data range
-     * @param integer $end The unix timestamp in ms of the end of the data range
-     * @param integer $interval The number os seconds for each data point to return (used by some engines)
-     * @param integer $skipmissing Skip null values from returned data (used by some engines)
-     * @param integer $limitinterval Limit datapoints returned to this value (used by some engines)
-    */
+     * @param integer $limitinterval not implemented
+     *
+     */
     public function get_data($feedid,$start,$end,$interval,$skipmissing,$limitinterval)
     {
-        global $data_sampling;
+        global $settings;
         
         $feedid = intval($feedid);
         $start = round($start/1000);
@@ -175,7 +178,7 @@ class MysqlTimeSeries
 
         $data = array();
         $range = $end - $start; // window duration in seconds
-        if ($data_sampling && $range > 180000 && $dp > 0) // 50 hours
+        if ($settings["feed"]["mysqltimeseries"]["data_sampling"] && $range > 180000 && $dp > 0) // 50 hours
         {
             $td = $range / $dp; // time duration for each datapoint
             $stmt = $this->mysqli->prepare("SELECT time, data FROM $feedname WHERE time BETWEEN ? AND ? ORDER BY time ASC LIMIT 1");
@@ -189,7 +192,8 @@ class MysqlTimeSeries
                 if ($stmt->fetch()) {
                     if ($dataValue!=NULL || $skipmissing===0) { // Remove this to show white space gaps in graph
                         $time = $dataTime * 1000;
-                        $data[] = array($time, (float)$dataValue);
+                        if ($dataValue !== null) $dataValue = (float) $dataValue ;
+                        $data[] = array($time, $dataValue);
                     }
                 }
                 $t = $tb;
@@ -217,7 +221,8 @@ class MysqlTimeSeries
                     $dataValue = $row['data'];
                     if ($dataValue!=NULL || $skipmissing===0) { // Remove this to show white space gaps in graph
                         $time = $row['time'] * 1000 * $td;
-                        $data[] = array($time , (float)$dataValue);
+                        if ($dataValue !== null) $dataValue = (float) $dataValue ;
+                        $data[] = array($time , $dataValue);
                     }
                 }
             }
@@ -226,6 +231,313 @@ class MysqlTimeSeries
         return $data;
     }
 
+    /**
+     * Return datapoints for intervals in the given timerange.
+     *
+     * @param integer $id The id of the feed to fetch from
+     * @param integer $start The unix timestamp in ms of the start of the data range
+     * @param integer $end The unix timestamp in ms of the end of the data range
+     * @param string $mode The name of the interval. Possible values are: daily, weekly, monthly, annual
+     * @param string $timezone The time zone to which the intervals refer
+    */     
+    public function get_data_DMY($id,$start,$end,$mode,$timezone) 
+    {
+        if ($mode!="daily" && $mode!="weekly" && $mode!="monthly" && $mode!="annual") return false;
+
+        $id = (int) $id;
+        $start = intval($start/1000);
+        $end = intval($end/1000);
+        $feedname = "feed_".trim($id);
+        $data = array();
+        
+        // Set interval based on timezone        
+        $date = new DateTime();
+        if ($timezone===0) $timezone = "UTC";
+        $date->setTimezone(new DateTimeZone($timezone));
+        $date->setTimestamp($start);
+        $date->modify("midnight");
+        $increment="+1 day";
+        if ($mode=="weekly") { $date->modify("this monday"); $increment="+1 week"; }
+        if ($mode=="monthly") { $date->modify("first day of this month"); $increment="+1 month"; }
+        if ($mode=="annual") { $date->modify("first day of January this year"); $increment="+1 year"; }
+
+
+        // Get first and last datapoint of feed
+        $sql = "SELECT DISTINCT time, data FROM $feedname WHERE ("
+                ." time = (SELECT min(time) FROM $feedname )"
+                ."OR  time = (SELECT max(time) FROM $feedname )" 
+                .")";
+        $result = $this->mysqli->query($sql);
+        
+        if($result) {
+            $range = $result->fetch_all(MYSQLI_ASSOC);
+            if ( count($range) < 2 ) return array('success'=>false, 'message'=>"Feed $id does not contain enough datapoints yet");;
+        } else {
+            return false;
+        }
+
+        // Iterate intervals
+        $n = 0;
+        while($n<10000) // max iterations
+        {
+            $time = $date->getTimestamp();
+            if ($time>$end) break;
+            
+            // Limit DB requests to available datapoints in feed
+            if ( $range[0]['time'] < $time &&  $time < $range[1]['time'] ) {
+                // get datapoint using interpolation if necessary
+                $data[] = $this->get_datapoint_interpolated($id, $time * 1000);
+                
+            } elseif( $time > $range[1]['time'] ) {
+                // return latest feed value
+                $data[] = array( $time *1000, (float) $range[1]['data'] );
+                break;
+                
+            } else {
+                // return NULL if requested time is out of feed range
+                $data[] = array($time *1000, NULL);
+                
+            }
+            
+            $date->modify($increment);
+            $n++;
+        }
+        
+        return $data;
+    }
+    
+    public function get_data_DMY_time_of_day($id,$start,$end,$mode,$timezone,$split) 
+    {
+        if ($mode!="daily" && $mode!="weekly" && $mode!="monthly" && $mode!="annual") return false;
+
+        $id = (int) $id;
+        $start = intval($start/1000);
+        $end = intval($end/1000);
+        $feedname = "feed_".trim($id);
+        $data = array();
+        $split = json_decode($split);
+
+        if (gettype($split)!="array") return false;
+        /* SP Increase to 48 points to allow a days worth of half hour readings */
+        if (count($split)>48) return false;
+        
+        // Set interval based on timezone        
+        $date = new DateTime();
+        if ($timezone===0) $timezone = "UTC";
+        $date->setTimezone(new DateTimeZone($timezone));
+        $date->setTimestamp($start);
+        $date->modify("midnight");
+        $increment="+1 day";
+        if ($mode=="weekly") { $date->modify("this monday"); $increment="+1 week"; }
+        if ($mode=="monthly") { $date->modify("first day of this month"); $increment="+1 month"; }
+        if ($mode=="annual") { $date->modify("first day of January this year"); $increment="+1 year"; }
+
+
+        // Get first and last datapoint of feed
+        $sql = "SELECT DISTINCT time, data FROM $feedname WHERE ("
+                ." time = (SELECT min(time) FROM $feedname )"
+                ."OR  time = (SELECT max(time) FROM $feedname )" 
+                .")";
+        $result = $this->mysqli->query($sql);
+        
+        if($result) {
+            $range = $result->fetch_all(MYSQLI_ASSOC);
+            if ( count($range) < 2 ) return array('success'=>false, 'message'=>"Feed $id does not contain enough datapoints yet");;
+        } else {
+            return false;
+        }
+
+        // Iterate intervals
+        $n = 0;
+        while($n<10000) // max iterations
+        {
+            $time = $date->getTimestamp();
+            if ($time>$end) break;
+            
+            $value = null;
+
+            $split_values = array();
+
+            foreach ($split as $splitpoint)
+            {
+                
+                //Fix issue with rounding to nearest 30 minutes
+                $split_offset = (int) (((float)$splitpoint) * 3600.0);
+
+                $split_time = $time+$split_offset;
+                        
+                $value = null;
+                
+                // Limit DB requests to available datapoints in feed
+                if ( $range[0]['time'] < $time &&  $time < $range[1]['time'] ) {
+                    // get datapoint using interpolation if necessary
+                    $result = $this->get_datapoint_interpolated($id, $split_time * 1000);
+                    $value = $result[1];
+
+                } else {
+                    // return NULL if requested time is out of feed range
+                    $value = NULL;
+                }
+                
+                $split_values[] = $value;
+            }
+            
+            $data[] = array($time*1000,$split_values);
+            $date->modify($increment);
+            $n++;
+        }
+        
+        return $data;
+    }
+
+    /**
+     * Return datapoint for requested timestamp. If feed does not contain a datapoint for requested timestamp, the value is calculated using linear interpolation.
+     *
+     * @param integer $id The id of the feed to fetch from
+     * @param integer $time The unix timestamp in ms of the requested datapoint
+    */     
+    private function get_datapoint_interpolated( $id, $time)
+    {
+        $id = (int) $id;
+        $feedname = "feed_".trim($id);
+        $time = intval($time/1000);
+        $data = array();
+        
+        // Search for previous and next datapoint
+        $sql = "SELECT time, data FROM $feedname WHERE ("
+                ." time = IFNULL( (SELECT max(time) FROM $feedname where time <= $time), 0) "
+                ."OR  time = IFNULL( (SELECT min(time) FROM $feedname where time > $time), 0) " 
+                .")";
+        $result = $this->mysqli->query($sql);
+        
+        
+        if($result) {
+            $dp = $result->fetch_all(MYSQLI_ASSOC);
+            
+            if ( count($dp) == 2){
+                
+                if ( $dp[0]['time'] == $time){
+                    
+                    // Datapoint to given timestamp found
+                    $data = array($time *1000 , (float) $dp[0]['data'] );
+                    
+                } else {
+                    
+                    // No datapoint to given timestamp found. Datapoint will be interpolated
+                    $delta_t = $dp[1]['time'] - $dp[0]['time'];
+                    $delta_data = $dp[1]['data'] - $dp[0]['data'];
+                    if ( $delta_t != 0 ){
+                        // Linear interpolation
+                        $value = $dp[0]['data'] + ($delta_data / $delta_t) * ($time - $dp[0]['time']);
+                        $data = array($time *1000 , (float) $value );
+                    }
+                }
+                
+            } else {
+                // only one datapoint found, interpolation not possible.
+                $data = array( $time *1000 , NULL);
+            }
+
+        } 
+        return $data;
+    }
+
+    /**
+     * Return the averaged data over interval for the given timerange. The returned timestamp denotes the intervals start time. Averaging is performed over all values from time to time+interval.
+     *
+     * @param integer $id The id of the feed to fetch from
+     * @param integer $start The unix timestamp in ms of the start of the data range
+     * @param integer $end The unix timestamp in ms of the end of the data range
+     * @param integer $interval The number os seconds for each data point to return (used by some engines)
+    */ 
+    public function get_average($id,$start,$end,$interval)
+    {
+        $id = (int) $id;
+        $start = intval($start/1000);
+        $end = intval($end/1000);
+        $interval= (int) $interval;
+        
+        // Minimum interval
+        if ($interval<1) $interval = 1;
+        // Maximum request size
+        $req_dp = round(($end-$start) / $interval);
+        if ($req_dp>10000) return array('success'=>false, 'message'=>"Request datapoint limit reached (10000), increase request interval or time range, requested datapoints = $req_dp");
+        
+        $feedname = "feed_".trim($id);
+
+        $data = array();
+        
+        $sql = "SELECT time, AVG(data) AS data_avg FROM $feedname WHERE time >= $start AND time < $end GROUP BY FLOOR(time/$interval)";            
+        $result = $this->mysqli->query($sql);
+        if ( $result ){
+            while($row = $result->fetch_array()) {
+                $data[] = array( (int) $row['time'] * 1000, (float) $row['data_avg'] );
+            }
+        }        
+               
+        return $data;        
+    }
+    
+    /**
+     * Return the averaged data over interval for the given timerange. The returned timestamp denotes the intervals start time. Averaging is performed over all values from time to time+interval.
+     *
+     * @param integer $id The id of the feed to fetch from
+     * @param integer $start The unix timestamp in ms of the start of the data range
+     * @param integer $end The unix timestamp in ms of the end of the data range
+     * @param string $mode The name of the interval. Possible values are: daily, weekly, monthly, annual
+     * @param string $timezone The time zone to which the intervals refer
+    */     
+    public function get_average_DMY($id,$start,$end,$mode,$timezone)
+    {
+        $id = (int) $id;
+        if ($mode!="daily" && $mode!="weekly" && $mode!="monthly" && $mode!="annual") return false;
+
+        $start = intval($start/1000);
+        $end = intval($end/1000);
+        $feedname = "feed_".trim($id);
+        $data = array();
+        
+        // Set interval based on timezone        
+        $date = new DateTime();
+        if ($timezone===0) $timezone = "UTC";
+        $date->setTimezone(new DateTimeZone($timezone));
+        $date->setTimestamp($start);
+        $date->modify("midnight");
+        $increment="+1 day";
+        if ($mode=="weekly") { $date->modify("this monday"); $increment="+1 week"; }
+        if ($mode=="monthly") { $date->modify("first day of this month"); $increment="+1 month"; }
+        if ($mode=="annual") { $date->modify("first day of January this year"); $increment="+1 year"; }
+
+
+        $n = 0;
+        while($n<10000) // max iterations
+        {
+            $interval_start = $date->getTimestamp();
+            $date->modify($increment);
+            $interval_end = $date->getTimestamp();
+            
+            if ($interval_start>$end) break;
+            
+            
+            $sql = "SELECT AVG(data) AS dp FROM $feedname WHERE time >= $interval_start AND time < $interval_end";            
+            $result = $this->mysqli->query($sql);
+            
+            if($result) {
+                $dp = $result->fetch_array();
+                if ( $dp != NULL ) {
+                    if ( $dp['dp'] !== NULL ) $dp['dp'] = (float) $dp['dp'];
+                    $data[] = array( $interval_start *1000 , $dp['dp']);
+                } else {
+                    $data[] = array( $interval_start *1000 , NULL);                 
+                }
+            }
+
+            $n++;
+        }
+        
+        return $data;
+    }    
+    
     public function export($feedid,$start)
     {
         // Feed id and start time of feed to export
@@ -289,7 +601,7 @@ class MysqlTimeSeries
 
     public function csv_export($feedid,$start,$end,$outinterval,$usertimezone)
     {
-        global $csv_decimal_places, $csv_decimal_place_separator, $csv_field_separator, $data_sampling;
+        global $settings;
 
         require_once "Modules/feed/engine/shared_helper.php";
         $helperclass = new SharedHelper();
@@ -335,7 +647,7 @@ class MysqlTimeSeries
         // Write to output stream
         $exportfh = @fopen( 'php://output', 'w' );
         $range = $end - $start; // window duration in seconds
-        if ($data_sampling && $range > 180000 && $dp > 0) // 50 hours
+        if ($settings["feed"]["mysqltimeseries"]["data_sampling"] && $range > 180000 && $dp > 0) // 50 hours
         {
             $td = $range / $dp; // time duration for each datapoint
             $stmt = $this->mysqli->prepare("SELECT time, data FROM $feedname WHERE time BETWEEN ? AND ? ORDER BY time ASC LIMIT 1");
@@ -349,7 +661,7 @@ class MysqlTimeSeries
                 if ($stmt->fetch()) {
                     if ($dataValue!=NULL || $skipmissing===0) { // Remove this to show white space gaps in graph
                         $timenew = $helperclass->getTimeZoneFormated($time,$usertimezone);
-                        fwrite($exportfh, $timenew.$csv_field_separator.number_format((float)$dataValue,$csv_decimal_places,$csv_decimal_place_separator,'')."\n");
+                        fwrite($exportfh, $timenew.$settings["feed"]["csv_field_separator"].number_format((float)$dataValue,$settings["feed"]["csv_decimal_places"],$settings["feed"]["csv_decimal_place_separator"],'')."\n");
                     }
                 }
                 $t = $tb;
@@ -373,7 +685,7 @@ class MysqlTimeSeries
                     if ($dataValue!=NULL || $skipmissing===0) { // Remove this to show white space gaps in graph
                         $time = $row['time'] * $td;
                         $timenew = $helperclass->getTimeZoneFormated($time,$usertimezone);
-                        fwrite($exportfh, $timenew.$csv_field_separator.number_format((float)$dataValue,$csv_decimal_places,$csv_decimal_place_separator,'')."\n");
+                        fwrite($exportfh, $timenew.$settings["feed"]["csv_field_separator"].number_format((float)$dataValue,$settings["feed"]["csv_decimal_places"],$settings["feed"]["csv_decimal_place_separator"],'')."\n");
                     }
                 }
             }
@@ -382,6 +694,36 @@ class MysqlTimeSeries
         fclose($exportfh);
         exit;
     }
+
+
+    public function clear($feedid){
+        $feedid = filter_var ( $feedid, FILTER_SANITIZE_NUMBER_INT);
+        $table = "feed_$feedid";
+        $sql = "TRUNCATE TABLE $table";
+        if(!$this->mysqli->query($sql)) {
+            return array('success'=>false,'message'=>"0 rows deleted");
+        } else {
+            return array('success'=>true,'message'=>"All database rows deleted");
+        }
+    }
+    
+    public function trim($feedid, $start_time){
+        $feedid = filter_var ( $feedid, FILTER_SANITIZE_NUMBER_INT);
+        $start_time = filter_var ( $start_time, FILTER_SANITIZE_NUMBER_INT);
+        $table = "feed_$feedid";
+        $stmt = $this->mysqli->prepare("DELETE FROM $table WHERE time < ?");
+        if(!$stmt) return array('success'=>false,'message'=>"Error accessing database");
+        if(!$stmt->bind_param("i", $start_time)) return array('success'=>false,'message'=>"Error passing parameters to database");
+        if(!$stmt->execute()) return array('success'=>false,'message'=>"Error executing commands on database");
+        $affected_rows = $stmt->affected_rows;
+        if($affected_rows>0){
+            return array('success'=>true,'message'=>"$affected_rows rows deleted");
+        } else {
+            return array('success'=>false,'message'=>"0 rows deleted");
+        }
+    }
+
+
 
 // #### /\ Above are required methods
 
@@ -465,5 +807,5 @@ class MysqlTimeSeries
        }
        return false;
     }
-
+    
 }

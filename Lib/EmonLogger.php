@@ -17,18 +17,19 @@ class EmonLogger
     private $logfile = "";
     private $caller = "";
     private $logenabled = false;
-    private $log_level = 3;
+    private $log_level = 2;
 
     public function __construct($clientFileName)
     {
-        global $log_filename, $log_enabled, $log_level;
+        global $settings;
 
-        if (!$log_enabled) {
+        if (!$settings['log']['enabled']) {
             $this->logenabled = false;
         }
-        else if ($log_filename) {
-            if ($log_level) $this->log_level = $log_level;
-            $this->logfile = $log_filename;
+        else 
+        {
+            $this->logfile = $settings['log']['location']."/emoncms.log";
+            if ($settings['log']['level']) $this->log_level = $settings['log']['level'];
             $this->caller = basename($clientFileName);
             if (!file_exists($this->logfile))
             {
@@ -38,22 +39,28 @@ class EmonLogger
             if (is_writable($this->logfile)) $this->logenabled = true;
         }
     }
+    
+    public function set($logfile,$log_level) {
+        $this->logfile = $logfile;
+        $this->log_enabled = true;
+        $this->log_level = $log_level;
+    }
 
     public function info ($message){
-        if ($this->log_level <= 3) $this->write("INFO",$message);
+        if ($this->log_level <= 1) $this->write("INFO",$message);
     }
 
     public function warn ($message){
         if ($this->log_level <= 2) $this->write("WARN",$message);
     }
-    
+
     public function error ($message){
-        if ($this->log_level <= 1) $this->write("ERROR",$message);
+        if ($this->log_level <= 3) $this->write("ERROR",$message);
     }
-    
+
     private function write($type,$message){
         if (!$this->logenabled) return;
-        
+
         $now = microtime(true);
         $micro = sprintf("%03d",($now - ($now >> 0)) * 1000);
         $now = DateTime::createFromFormat('U', (int)$now); // Only use UTC for logs

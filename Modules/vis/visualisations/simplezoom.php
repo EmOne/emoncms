@@ -10,11 +10,7 @@
 ?>
 
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.selection.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.touch.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/date.format.min.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
 
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/api.js"></script>
 <script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/inst.js"></script>
@@ -56,12 +52,12 @@
   $('#graph').height($('#graph_bound').height());
   if (embed) $('#graph').height($(window).height());
 
-  var path = "<?php echo $path; ?>";
   var apikey = "<?php echo $apikey; ?>";
 
   var power = "<?php echo $power; ?>";
   var kwhd = "<?php echo $kwhd; ?>";
-
+  var delta = "<?php echo $delta; ?>";
+  
   var timeWindow = (3600000*24.0*30);         //Initial time window
   var start = ((new Date()).getTime())-timeWindow;    //Get start time
   var end = (new Date()).getTime();       //Get end time
@@ -75,13 +71,16 @@
 
   var feedlist = [];
   feedlist[0] = {id: power, selected: 0, plot: {data: null, lines: { show: true, fill: true } } };
-  feedlist[1] = {id: kwhd, interval:86400, selected: 1, plot: {data: null, bars: { show: true, align: "center", barWidth: 3600*18*1000, fill: true}, yaxis:2} };
+  feedlist[1] = {id: kwhd, mode:"daily", delta: delta, interval:86400, selected: 1, plot: {data: null, bars: { show: true, align: "center", barWidth: 3600*18*1000, fill: true}, yaxis:2} };
 
-  $(window).resize(function(){
+  $(document).on('window.resized hidden.sidebar.collapse shown.sidebar.collapse',vis_resize);
+  
+  function vis_resize() {
     $('#graph').width($('#graph_bound').width());
+    $('#graph').height($('#graph_bound').height());
     if (embed) $('#graph').height($(window).height());
     plot();
-  });
+  }
 
   vis_feed_data();
 
@@ -124,8 +123,20 @@
             dataend = end;
             interval = Math.round(((end-start)/500)*0.001);
           }
-
-          feedlist[i].plot.data = get_feed_data(feedlist[i].id,datastart,dataend,interval,1,1);
+          if (feedlist[i].mode==undefined) {
+              feedlist[i].plot.data = get_feed_data(feedlist[i].id,datastart,dataend,interval,1,1);
+          } else {
+              feedlist[i].plot.data = get_feed_data_DMY(feedlist[i].id,datastart,dataend,feedlist[i].mode);
+          }
+          
+          if (feedlist[i].delta==1 && i==1) {
+              var tmp = [];
+              for (var n=1; n<feedlist[i].plot.data.length; n++) {
+                  var delta = feedlist[i].plot.data[n][1] - feedlist[i].plot.data[n-1][1];
+                  tmp.push([feedlist[i].plot.data[n-1][0],delta]);
+              }
+              feedlist[i].plot.data = tmp;
+          }
         }
         
         if ( feedlist[i].plot.data) plotdata.push(feedlist[i].plot);
@@ -145,6 +156,7 @@
   function plot()
   {
     var plot = $.plot($("#graph"), plotdata, {
+      canvas: true,
       selection: { mode: "x" },
       grid: { show: true, clickable: true, hoverable: true },
       xaxis: { mode: "time", timezone: "browser", min: start, max: end },

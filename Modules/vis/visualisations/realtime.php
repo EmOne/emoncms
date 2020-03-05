@@ -1,4 +1,4 @@
- <?php
+<?php
 /*
    All Emoncms code is released under the GNU Affero General Public License.
    See COPYRIGHT.txt and LICENSE.txt.
@@ -10,9 +10,10 @@
  ?>
 
 <!--[if IE]><script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/excanvas.min.js"></script><![endif]-->
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path;?>Lib/flot/jquery.flot.time.min.js"></script>
-<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Modules/vis/visualisations/common/api.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path; ?>Lib/flot/jquery.flot.merged.js"></script>
+
+<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/api.js"></script>
+<script language="javascript" type="text/javascript" src="<?php echo $path;?>Modules/vis/visualisations/common/vis.helper.js"></script>
     
     <?php if (!$embed) { ?>
     <h2><?php echo _("Realtime data:"); ?> <?php echo $feedidname; ?></h2>
@@ -31,14 +32,24 @@
 
     <script id="source" language="javascript" type="text/javascript">
     var feedid = <?php echo $feedid; ?>;                //Fetch table name
-    var path = "<?php echo $path; ?>";
     var apikey = "<?php echo $apikey; ?>";  
     var embed = <?php echo $embed; ?>;
+    var is_kw = <?php echo $kw === 1 ? 'true': 'false'; ?>;
     var data = [];
     var timerget;
-    var timeWindow = (900*1000);  //Initial 15m time window
     var fast_update_fps = 10;
-    
+
+    var plotColour = urlParams.colour;
+    if (plotColour==undefined || plotColour=='') plotColour = "EDC240";
+    if (plotColour.indexOf("#") == -1) {
+        plotColour = "#" + plotColour;
+    }
+
+    var initzoom = urlParams.initzoom;
+    if (initzoom==undefined || initzoom=='' || initzoom < 1) initzoom = '15'; // Initial zoom default to 15 mins
+
+    var timeWindow = (60*1000*initzoom);        //Initial time window
+
     var graph_bound = $('#graph_bound'),
     graph = $("#graph");
     graph.width(graph_bound.width()).height(graph_bound.height());
@@ -49,7 +60,7 @@
     var end = now;                     // end time
     var interval = parseInt(((end*0.001+10) - (start*0.001-10)) / 800);
     data = get_feed_data(feedid,(start-10000),(end+10000),interval,1,1);
-    
+
     timerget = setInterval(getdp,7500);
     gpu_fast();
     //setInterval(fast,150);
@@ -71,11 +82,13 @@
       plot();
     }
 
-    $(window).resize(function(){
+    $(document).on('window.resized hidden.sidebar.collapse shown.sidebar.collapse',vis_resize);
+    
+    function vis_resize() {
       graph.width(graph_bound.width());
       if (embed) graph.height($(window).height());
       window.requestAnimationFrame(plot);
-    });
+    }
 
     function getdp(){
       $.ajax({ url: 
@@ -87,15 +100,26 @@
           if (data.length==0 || data[data.length-1][0]!=result.time*1000) {
             data.push([result.time*1000,parseFloat(result.value)]);
           }
-          if (data.length>0 && data[1][0]<(start)) data.splice(0, 1);
+          if (data.length>0 && data[1] && data[1][0]<(start)) data.splice(0, 1);
           data.sort();
         }
      });
     }
 
     function plot(){
-      $.plot(graph,[{data: data, lines: { fill: true }}],
+        if(is_kw) {
+            var word = 'converted';
+            for(n in data) {
+                if(data[n] && data[n][1] && typeof data[n][2] === 'undefined' && typeof data[n][2] !== word) {
+                    data[n][1] = data[n][1] / 1000;
+                    data[n][2] = word
+                }
+            }
+        }
+      $.plot(graph,[{data: data, color: plotColour}],
       {
+        canvas: true,
+        lines: { fill: true },
         series: { shadowSize: 0 },
         xaxis: { tickLength:10, mode: "time", timezone: "browser", min: start, max: end }
       });

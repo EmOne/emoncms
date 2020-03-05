@@ -10,6 +10,7 @@ DirectoryIndex index.php
   RewriteEngine on
  
   #RewriteBase /sites/emon/
+  RewriteRule ^emoncms/(.*)$ $1 [L]
 
   # Rewrite URLs of the form 'x' to the form 'index.php?q=x'.
   RewriteCond %{REQUEST_FILENAME} !-f
@@ -18,6 +19,7 @@ DirectoryIndex index.php
   # Skip rewrites for known files, folders and 4xx/5xx errors so we know if something is wrong
   RewriteCond %{REQUEST_URI} !=/favicon.ico
   RewriteCond %{REQUEST_URI} !=/robots.txt
+  RewriteCond %{REQUEST_URI} !^/.well-known/.$
   RewriteCond %{REQUEST_URI} !^/?docs.*$
   RewriteCond %{REQUEST_URI} !^/?Lib.*$
   RewriteCond %{REQUEST_URI} !^/?Modules.*$
@@ -25,6 +27,14 @@ DirectoryIndex index.php
   RewriteCond %{REQUEST_URI} !^/?Theme.*$
   RewriteCond %{ENV:REDIRECT_STATUS} ![45]0[0-9]
   RewriteRule ^(.*)$ index.php?q=$1 [L,QSA]
+</IfModule>
+
+# ------------------------------------------------------------------------------
+# Rewrite auth header. Fix Authorization: Bearer
+# https://cweiske.de/tagebuch/php-apache-authorization.htm
+# ------------------------------------------------------------------------------
+<IfModule mod_setenvif.c>
+  SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 </IfModule>
 
 # ------------------------------------------------------------------------------
@@ -199,3 +209,12 @@ AddDefaultCharset utf-8
     </IfModule>
 
 </FilesMatch>
+
+# protect phpinfo, only allow localhost and local network access
+<Files php-info.php>
+    # LOCAL ACCESS ONLY
+    # Require local 
+
+    # LOCAL AND LAN ACCESS
+    Require ip 10 172 192.168
+</Files>
